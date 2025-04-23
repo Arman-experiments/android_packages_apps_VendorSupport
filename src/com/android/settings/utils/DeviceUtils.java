@@ -21,6 +21,7 @@ import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_GESTURAL;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
@@ -39,6 +40,8 @@ import android.nfc.NfcAdapter;
 import android.os.Build;
 import android.os.SystemProperties;
 import android.provider.Settings;
+import android.telephony.TelephonyManager;
+import android.telephony.SubscriptionManager;
 import android.text.TextUtils;
 import android.view.Display;
 import android.view.DisplayCutout;
@@ -46,6 +49,9 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.Surface;
 
+import androidx.annotation.NonNull;
+
+import java.util.Arrays;
 import java.util.List;
 
 import static org.lineageos.internal.util.DeviceKeysConstants.*;
@@ -205,7 +211,7 @@ public class DeviceUtils {
      * @param activity
      */
     public static void lockCurrentOrientation(Activity activity) {
-        int currentRotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+        int currentRotation = activity.getDisplay().getRotation();
         int orientation = activity.getResources().getConfiguration().orientation;
         int frozenRotation = 0;
         switch (currentRotation) {
@@ -242,15 +248,19 @@ public class DeviceUtils {
         return !TextUtils.isEmpty(name);
     }
 
-/*
     public static boolean deviceSupportsMobileData(Context ctx) {
-        ConnectivityManager cm = ctx.getSystemService(ConnectivityManager.class);
-        return cm.isNetworkSupported(ConnectivityManager.TYPE_MOBILE);
+        TelephonyManager telephonyManager = ctx.getSystemService(TelephonyManager.class);
+        return telephonyManager.isDataCapable();
     }
-*/
 
     public static boolean deviceSupportsBluetooth() {
         return (BluetoothAdapter.getDefaultAdapter() != null);
+    }
+
+    public static boolean deviceSupportsBluetooth(Context ctx) {
+        BluetoothManager bluetoothManager = (BluetoothManager)
+                ctx.getSystemService(Context.BLUETOOTH_SERVICE);
+        return (bluetoothManager.getAdapter() != null);
     }
 
     public static boolean deviceSupportsNfc(Context ctx) {
@@ -284,6 +294,12 @@ public class DeviceUtils {
         return false;
     }
 
+    public static boolean isMobileDataEnabled(Context context) {
+        TelephonyManager telephonyManager = context.getSystemService(TelephonyManager.class);
+        int subId = SubscriptionManager.getDefaultDataSubscriptionId();
+        return telephonyManager.createForSubscriptionId(subId).isDataEnabled();
+    }
+
     public static boolean isSwipeUpEnabled(Context context) {
         if (isEdgeToEdgeEnabled(context)) {
             return false;
@@ -305,7 +321,7 @@ public class DeviceUtils {
         return blurSupportedSysProp && !blurDisabledSysProp && ActivityManager.isHighEndGfx();
     }
 
-     /**
+    /**
      * Checks if the device has udfps
      * @param context context for getting FingerprintManager
      * @return true is udfps is present
@@ -316,5 +332,10 @@ public class DeviceUtils {
         final List<FingerprintSensorPropertiesInternal> props =
                 fingerprintManager.getSensorPropertiesInternal();
         return props != null && props.size() == 1 && props.get(0).isAnyUdfpsType();
+    }
+
+    public static boolean isCurrentlySupportedPixel() {
+        boolean isPixelDevice = SystemProperties.get("ro.product.model").matches("Pixel [3-9][a-zA-Z ]*");
+        return isPixelDevice;
     }
 }
